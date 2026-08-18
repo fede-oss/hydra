@@ -146,7 +146,10 @@ export default class Redgifs {
       }
 
       if ([401, 403].includes(res.status) && attemptsLeft > 0) {
-        await Redgifs.refreshStoredToken();
+        const currentToken = Redgifs.getStoredToken();
+        if (!currentToken || currentToken === token) {
+          await Redgifs.refreshStoredToken();
+        }
         return await Redgifs.getMediaURL(url, attemptsLeft - 1);
       }
 
@@ -168,14 +171,11 @@ export default class Redgifs {
     if (tokenRefreshPromise) return await tokenRefreshPromise;
 
     const refreshPromise = (async () => {
-      const res = await safeFetch(
-        "https://api.redgifs.com/v2/auth/temporary",
-        {
-          headers: {
-            "User-Agent": "Hydra",
-          },
+      const res = await safeFetch("https://api.redgifs.com/v2/auth/temporary", {
+        headers: {
+          "User-Agent": "Hydra",
         },
-      );
+      });
       if (!res.ok) {
         throw new Error(`RedGifs token refresh failed (${res.status})`);
       }
