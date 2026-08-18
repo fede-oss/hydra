@@ -46,6 +46,7 @@ type RedditDataScrollerProps<T> = OverridableFlashListProps<T> & {
   data: T[];
   fullyLoaded: boolean;
   hitFilterLimit: boolean;
+  loadError?: string | null;
   noDataFoundMessage?: string;
 };
 
@@ -66,14 +67,15 @@ function RedditDataScroller<T extends RedditDataObject>(
   const [isLoadingMore, setIsLoadingMore] = useState(
     props.showInitialLoader ?? true,
   );
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [localLoadError, setLocalLoadError] = useState<string | null>(null);
 
   const lastScrollPosition = useRef(0);
+  const displayedLoadError = localLoadError ?? props.loadError;
 
   const loadMoreData = async (refresh = false) => {
     if (props.fullyLoaded && !refresh) return;
     setIsLoadingMore(true);
-    setLoadError(null);
+    setLocalLoadError(null);
     try {
       if (refresh) {
         await props.refresh();
@@ -81,7 +83,7 @@ function RedditDataScroller<T extends RedditDataObject>(
         await props.loadMore();
       }
     } catch (error) {
-      setLoadError(getLoadErrorMessage(error));
+      setLocalLoadError(getLoadErrorMessage(error));
     } finally {
       if (refresh) {
         setRefreshing(false);
@@ -89,6 +91,22 @@ function RedditDataScroller<T extends RedditDataObject>(
       setIsLoadingMore(false);
     }
   };
+
+  useEffect(() => {
+    if (
+      props.data.length > 0 ||
+      props.fullyLoaded ||
+      props.hitFilterLimit ||
+      props.loadError
+    ) {
+      setIsLoadingMore(false);
+    }
+  }, [
+    props.data.length,
+    props.fullyLoaded,
+    props.hitFilterLimit,
+    props.loadError,
+  ]);
 
   /**
    * The tintColor prop on the RefreshControl component is broken in React Native 0.81.5.
@@ -144,7 +162,7 @@ function RedditDataScroller<T extends RedditDataObject>(
           {isLoadingMore && !props.fullyLoaded && (
             <ActivityIndicator size="small" />
           )}
-          {!isLoadingMore && loadError && (
+          {!isLoadingMore && displayedLoadError && (
             <Text
               style={[
                 styles.endOfListText,
@@ -153,10 +171,10 @@ function RedditDataScroller<T extends RedditDataObject>(
                 },
               ]}
             >
-              {loadError}
+              {displayedLoadError}
             </Text>
           )}
-          {props.fullyLoaded && !props.data.length && (
+          {props.fullyLoaded && !props.data.length && !displayedLoadError && (
             <Text
               style={[
                 styles.endOfListText,
@@ -168,19 +186,22 @@ function RedditDataScroller<T extends RedditDataObject>(
               {props.noDataFoundMessage ?? `There's nothing here.`}
             </Text>
           )}
-          {!isLoadingMore && props.fullyLoaded && !!props.data.length && (
-            <Text
-              style={[
-                styles.endOfListText,
-                {
-                  color: theme.text,
-                },
-              ]}
-            >
-              Wow. You've reached the bottom.
-            </Text>
-          )}
-          {!isLoadingMore && props.hitFilterLimit && (
+          {!isLoadingMore &&
+            props.fullyLoaded &&
+            !!props.data.length &&
+            !displayedLoadError && (
+              <Text
+                style={[
+                  styles.endOfListText,
+                  {
+                    color: theme.text,
+                  },
+                ]}
+              >
+                Wow. You've reached the bottom.
+              </Text>
+            )}
+          {!isLoadingMore && props.hitFilterLimit && !displayedLoadError && (
             <Text
               style={[
                 styles.endOfListText,
