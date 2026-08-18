@@ -50,7 +50,12 @@ export default function GalleryPage({ route }: StackPageProps<"GalleryPage">) {
     accessFailure,
     loadError,
   } = useRedditDataState<Post>({
-    loadData: async (after, limit) => await getPosts(url, { after, limit }),
+    loadData: async (after, limit) =>
+      await getPosts(url, {
+        after,
+        limit,
+        fetchOpenGraphData: false,
+      }),
     filterRules: [
       filterNonMediaItems,
       ...(shouldFilterSeen ? [filterSeenItems] : []),
