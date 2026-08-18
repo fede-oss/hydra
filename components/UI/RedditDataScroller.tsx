@@ -82,6 +82,7 @@ function RedditDataScroller<T extends RedditDataObject>(
       } else {
         await props.loadMore();
       }
+      setLocalLoadError(null);
     } catch (error) {
       setLocalLoadError(getLoadErrorMessage(error));
     } finally {
