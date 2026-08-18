@@ -53,6 +53,8 @@ export default function useRedditDataState<
   refreshDependencies = [],
 }: UseRedditDataStateProps<T>) {
   const unfilteredAfter = useRef<string | undefined>(undefined);
+  const loadMorePromise = useRef<Promise<void> | null>(null);
+  const refreshPromise = useRef<Promise<void> | null>(null);
 
   const [data, setData] = useState<T[]>([]);
   const [fullyLoaded, setFullyLoaded] = useState(false);
@@ -85,7 +87,7 @@ export default function useRedditDataState<
     }
   };
 
-  const loadMoreData = async () => {
+  const loadMoreDataInternal = async () => {
     if (hitFilterLimit) return;
     let newData: T[] = [];
     for (let i = 0; i < filterRetries; i++) {
@@ -107,17 +109,31 @@ export default function useRedditDataState<
       }
     }
     if (newData.length > 0) {
-      setData([...data, ...newData]);
+      setData((currentData) => [...currentData, ...newData]);
     } else {
       setHitFilterLimit(true);
     }
   };
 
-  const refreshData = async ({ clearBeforeLoading = false } = {}) => {
+  const loadMoreData = (): Promise<void> => {
+    if (refreshPromise.current) return refreshPromise.current;
+    if (loadMorePromise.current) return loadMorePromise.current;
+
+    const promise = loadMoreDataInternal().finally(() => {
+      if (loadMorePromise.current === promise) {
+        loadMorePromise.current = null;
+      }
+    });
+    loadMorePromise.current = promise;
+    return promise;
+  };
+
+  const refreshDataInternal = async ({ clearBeforeLoading = false } = {}) => {
     if (clearBeforeLoading) {
       setData([]);
     }
     unfilteredAfter.current = undefined;
+    setHitFilterLimit(false);
     let newData: T[] = [];
     for (let i = 0; i < filterRetries; i++) {
       const potentialData = await loadDataWithFailureHandling(
@@ -134,10 +150,28 @@ export default function useRedditDataState<
       if (newData.length > 0) {
         break;
       }
-      setHitFilterLimit(true);
     }
+    setHitFilterLimit(newData.length === 0);
     setFullyLoaded(false);
     setData(newData);
+  };
+
+  const refreshData = (options: { clearBeforeLoading?: boolean } = {}) => {
+    if (refreshPromise.current) return refreshPromise.current;
+
+    const pendingLoadMore = loadMorePromise.current;
+    const waitForLoadMore = pendingLoadMore
+      ? pendingLoadMore.catch(() => undefined)
+      : Promise.resolve();
+    const promise = waitForLoadMore
+      .then(() => refreshDataInternal(options))
+      .finally(() => {
+        if (refreshPromise.current === promise) {
+          refreshPromise.current = null;
+        }
+      });
+    refreshPromise.current = promise;
+    return promise;
   };
 
   const modifyData = (modifiedData: T[]) => {
@@ -174,10 +208,10 @@ export default function useRedditDataState<
   const initialLoad = useRef(true);
   useEffect(() => {
     if (initialLoad.current) {
-      loadMoreData();
+      void loadMoreData();
       initialLoad.current = false;
     } else {
-      refreshData({ clearBeforeLoading: true });
+      void refreshData({ clearBeforeLoading: true });
     }
   }, refreshDependencies);
 
