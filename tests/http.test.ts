@@ -9,16 +9,14 @@ describe("parseRetryAfterMs", () => {
 
   test("parses HTTP dates", () => {
     const now = Date.parse("2026-08-18T17:00:00Z");
-    expect(
-      parseRetryAfterMs("Tue, 18 Aug 2026 17:00:10 GMT", now),
-    ).toBe(10_000);
+    expect(parseRetryAfterMs("Tue, 18 Aug 2026 17:00:10 GMT", now)).toBe(
+      10_000,
+    );
   });
 
   test("clamps past HTTP dates to zero", () => {
     const now = Date.parse("2026-08-18T17:00:10Z");
-    expect(
-      parseRetryAfterMs("Tue, 18 Aug 2026 17:00:00 GMT", now),
-    ).toBe(0);
+    expect(parseRetryAfterMs("Tue, 18 Aug 2026 17:00:00 GMT", now)).toBe(0);
   });
 
   test("rejects missing, invalid, and negative values", () => {
