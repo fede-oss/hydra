@@ -5,8 +5,25 @@ import RedditCookies from "../utils/RedditCookies";
 import RedditURL from "../utils/RedditURL";
 import { USER_AGENT } from "./UserAgent";
 import safeFetch, { SafeFetchOptions } from "../utils/safeFetch";
+import { parseRetryAfterMs } from "../utils/http";
 
 export type RedditDataObject = { id: string; type: string; after: string };
+
+let redditRateLimitedUntil = 0;
+
+export class RedditRateLimitError extends Error {
+  name = "RedditRateLimitError";
+  retryAfterMs: number | null;
+
+  constructor(retryAfterMs: number | null) {
+    const retryMessage =
+      retryAfterMs == null
+        ? "Try again shortly."
+        : `Try again in about ${Math.max(1, Math.ceil(retryAfterMs / 1000))} seconds.`;
+    super(`Reddit is rate limiting requests. ${retryMessage}`);
+    this.retryAfterMs = retryAfterMs;
+  }
+}
 
 type ApiOptions = {
   depaginate?: boolean;
@@ -20,6 +37,12 @@ export async function api(
   fetchOptions: SafeFetchOptions = {},
   apiOptions: ApiOptions = {},
 ): Promise<any> {
+  const now = Date.now();
+  const activeRateLimitMs = redditRateLimitedUntil - now;
+  if (activeRateLimitMs > 0) {
+    throw new RedditRateLimitError(activeRateLimitMs);
+  }
+
   const headers = fetchOptions?.headers ?? {};
   if (apiOptions.requireAuth) {
     if (!UserAuth.modhash) {
@@ -47,6 +70,21 @@ export async function api(
    * so we set an expiration date of 10,000 days in the future.
    */
   await RedditCookies.persistSessionCookies();
+
+  if (res.status === 429) {
+    const rateLimitReceivedAt = Date.now();
+    const retryAfterMs = parseRetryAfterMs(
+      res.headers.get("Retry-After"),
+      rateLimitReceivedAt,
+    );
+    if (retryAfterMs != null && retryAfterMs > 0) {
+      redditRateLimitedUntil = Math.max(
+        redditRateLimitedUntil,
+        rateLimitReceivedAt + retryAfterMs,
+      );
+    }
+    throw new RedditRateLimitError(retryAfterMs);
+  }
 
   if (apiOptions.dontJsonifyResponse) {
     return await res.text();

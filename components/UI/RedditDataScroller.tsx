@@ -46,8 +46,15 @@ type RedditDataScrollerProps<T> = OverridableFlashListProps<T> & {
   data: T[];
   fullyLoaded: boolean;
   hitFilterLimit: boolean;
+  loadError?: string | null;
   noDataFoundMessage?: string;
 };
+
+function getLoadErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Unable to load Reddit data. Please try again.";
+}
 
 function RedditDataScroller<T extends RedditDataObject>(
   props: RedditDataScrollerProps<T>,
@@ -60,20 +67,47 @@ function RedditDataScroller<T extends RedditDataObject>(
   const [isLoadingMore, setIsLoadingMore] = useState(
     props.showInitialLoader ?? true,
   );
+  const [localLoadError, setLocalLoadError] = useState<string | null>(null);
 
   const lastScrollPosition = useRef(0);
+  const displayedLoadError = localLoadError ?? props.loadError;
 
   const loadMoreData = async (refresh = false) => {
     if (props.fullyLoaded && !refresh) return;
     setIsLoadingMore(true);
-    if (refresh) {
-      await props.refresh();
-      setRefreshing(false);
-    } else {
-      await props.loadMore();
+    setLocalLoadError(null);
+    try {
+      if (refresh) {
+        await props.refresh();
+      } else {
+        await props.loadMore();
+      }
+      setLocalLoadError(null);
+    } catch (error) {
+      setLocalLoadError(getLoadErrorMessage(error));
+    } finally {
+      if (refresh) {
+        setRefreshing(false);
+      }
+      setIsLoadingMore(false);
     }
-    setIsLoadingMore(false);
   };
+
+  useEffect(() => {
+    if (
+      props.data.length > 0 ||
+      props.fullyLoaded ||
+      props.hitFilterLimit ||
+      props.loadError
+    ) {
+      setIsLoadingMore(false);
+    }
+  }, [
+    props.data.length,
+    props.fullyLoaded,
+    props.hitFilterLimit,
+    props.loadError,
+  ]);
 
   /**
    * The tintColor prop on the RefreshControl component is broken in React Native 0.81.5.
@@ -104,7 +138,7 @@ function RedditDataScroller<T extends RedditDataObject>(
           onRefresh={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setRefreshing(true);
-            loadMoreData(true);
+            void loadMoreData(true);
           }}
         />
       }
@@ -120,7 +154,7 @@ function RedditDataScroller<T extends RedditDataObject>(
       }}
       onEndReachedThreshold={2}
       onEndReached={() => {
-        loadMoreData();
+        void loadMoreData();
       }}
       data={props.data}
       keyExtractor={(item) => `${item.type}-${item.id}`}
@@ -129,7 +163,19 @@ function RedditDataScroller<T extends RedditDataObject>(
           {isLoadingMore && !props.fullyLoaded && (
             <ActivityIndicator size="small" />
           )}
-          {props.fullyLoaded && !props.data.length && (
+          {!isLoadingMore && displayedLoadError && (
+            <Text
+              style={[
+                styles.endOfListText,
+                {
+                  color: theme.text,
+                },
+              ]}
+            >
+              {displayedLoadError}
+            </Text>
+          )}
+          {props.fullyLoaded && !props.data.length && !displayedLoadError && (
             <Text
               style={[
                 styles.endOfListText,
@@ -141,19 +187,22 @@ function RedditDataScroller<T extends RedditDataObject>(
               {props.noDataFoundMessage ?? `There's nothing here.`}
             </Text>
           )}
-          {!isLoadingMore && props.fullyLoaded && !!props.data.length && (
-            <Text
-              style={[
-                styles.endOfListText,
-                {
-                  color: theme.text,
-                },
-              ]}
-            >
-              Wow. You've reached the bottom.
-            </Text>
-          )}
-          {!isLoadingMore && props.hitFilterLimit && (
+          {!isLoadingMore &&
+            props.fullyLoaded &&
+            !!props.data.length &&
+            !displayedLoadError && (
+              <Text
+                style={[
+                  styles.endOfListText,
+                  {
+                    color: theme.text,
+                  },
+                ]}
+              >
+                Wow. You've reached the bottom.
+              </Text>
+            )}
+          {!isLoadingMore && props.hitFilterLimit && !displayedLoadError && (
             <Text
               style={[
                 styles.endOfListText,

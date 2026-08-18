@@ -39,16 +39,24 @@ type GalleryComponentProps = {
   loadMore: () => Promise<void>;
   fullyLoaded: boolean;
   hitFilterLimit: boolean;
+  loadError?: string | null;
   onPostScrolledPast?: (post: Post) => void | Promise<void>;
 };
 
 const FREE_LIMIT_POST_COUNT = 100;
+
+function getLoadErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Unable to load Reddit data. Please try again.";
+}
 
 export default function GalleryComponent({
   posts,
   loadMore,
   fullyLoaded,
   hitFilterLimit,
+  loadError,
   onPostScrolledPast,
 }: GalleryComponentProps) {
   const { theme } = useContext(ThemeContext);
@@ -61,11 +69,13 @@ export default function GalleryComponent({
   });
   const [isLoadingMore, setIsLoadingMore] = useState(true);
   const [hitFreeLimit, setHitFreeLimit] = useState(false);
+  const [localLoadError, setLocalLoadError] = useState<string | null>(null);
 
   const flashListRef = useRef<FlashListRef<GalleryItem>>(null);
   const seenTrackerRef = useRef(new GallerySeenTracker());
   const lastScrollPositionRef = useRef(0);
   const scrollingForwardRef = useRef(true);
+  const displayedLoadError = localLoadError ?? loadError;
 
   /**
    * This looks weird, but it's because we need to be able to fetch the post data
@@ -128,13 +138,25 @@ export default function GalleryComponent({
       return;
     }
     setIsLoadingMore(true);
-    await loadMore();
-    setIsLoadingMore(false);
+    setLocalLoadError(null);
+    try {
+      await loadMore();
+    } catch (error) {
+      setLocalLoadError(getLoadErrorMessage(error));
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   useEffect(() => {
     updateMedia(viewerMedia);
   }, [viewerMedia.length]);
+
+  useEffect(() => {
+    if (posts.length > 0 || fullyLoaded || hitFilterLimit || loadError) {
+      setIsLoadingMore(false);
+    }
+  }, [posts.length, fullyLoaded, hitFilterLimit, loadError]);
 
   return (
     <View
@@ -243,13 +265,13 @@ export default function GalleryComponent({
             : undefined
         }
         onEndReachedThreshold={2}
-        onEndReached={() => loadMoreData()}
+        onEndReached={() => void loadMoreData()}
         ListFooterComponent={
           <View style={styles.endOfListContainer}>
             {isLoadingMore && !hitFilterLimit && (
               <ActivityIndicator size="small" />
             )}
-            {!isLoadingMore && fullyLoaded && !!posts.length && (
+            {!isLoadingMore && displayedLoadError && (
               <Text
                 style={[
                   styles.endOfListText,
@@ -258,10 +280,25 @@ export default function GalleryComponent({
                   },
                 ]}
               >
-                {`Wow. You've reached the bottom.`}
+                {displayedLoadError}
               </Text>
             )}
-            {hitFilterLimit && (
+            {!isLoadingMore &&
+              fullyLoaded &&
+              !!posts.length &&
+              !displayedLoadError && (
+                <Text
+                  style={[
+                    styles.endOfListText,
+                    {
+                      color: theme.text,
+                    },
+                  ]}
+                >
+                  {`Wow. You've reached the bottom.`}
+                </Text>
+              )}
+            {hitFilterLimit && !displayedLoadError && (
               <Text
                 style={[
                   styles.endOfListText,

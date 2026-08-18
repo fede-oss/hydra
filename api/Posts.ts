@@ -68,6 +68,7 @@ export enum VoteOption {
 type GetPostOptions = {
   limit?: number;
   after?: string;
+  fetchOpenGraphData?: boolean;
 };
 
 function formatImages(child: any): ImageSource[][] {
@@ -222,7 +223,10 @@ async function formatVideos(child: any): Promise<Post["videos"]> {
   return [];
 }
 
-export async function formatPostData(child: any): Promise<Post> {
+export async function formatPostData(
+  child: any,
+  fetchOpenGraphData = true,
+): Promise<Post> {
   const images = formatImages(child);
   const imageThumbnail = images?.at(0)?.at(0) ?? null;
 
@@ -255,6 +259,7 @@ export async function formatPostData(child: any): Promise<Post> {
   } else {
     externalLink = child.data.url;
     if (
+      fetchOpenGraphData &&
       !videos.length &&
       !url.includes("imgur.com") &&
       !url.includes("gfycat.com") &&
@@ -284,9 +289,12 @@ export async function formatPostData(child: any): Promise<Post> {
 
   let crossPost: Post | undefined = undefined;
   if (child.data.crosspost_parent_list?.[0]) {
-    crossPost = await formatPostData({
-      data: child.data.crosspost_parent_list[0],
-    });
+    crossPost = await formatPostData(
+      {
+        data: child.data.crosspost_parent_list[0],
+      },
+      fetchOpenGraphData,
+    );
   }
 
   return {
@@ -373,7 +381,8 @@ export async function getPosts(
   }
   const posts: Post[] = await Promise.all(
     response.data.children.map(
-      async (child: any) => await formatPostData(child),
+      async (child: any) =>
+        await formatPostData(child, options.fetchOpenGraphData),
     ),
   );
   return posts;
@@ -433,7 +442,8 @@ export async function searchSubredditPosts(
   const response = await api(redditURL.toString());
   const posts: Post[] = await Promise.all(
     response.data.children.map(
-      async (child: any) => await formatPostData(child),
+      async (child: any) =>
+        await formatPostData(child, options.fetchOpenGraphData),
     ),
   );
   return posts;

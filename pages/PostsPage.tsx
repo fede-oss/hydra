@@ -71,6 +71,7 @@ export default function PostsPage({
     fullyLoaded,
     hitFilterLimit,
     accessFailure,
+    loadError,
   } = useRedditDataState<Post, "postLoadingError">({
     loadData: async (after, limit) => await getPosts(url, { after, limit }),
     filterRules: [
@@ -181,6 +182,7 @@ export default function PostsPage({
             refresh={refreshPosts}
             fullyLoaded={fullyLoaded}
             hitFilterLimit={hitFilterLimit}
+            loadError={loadError?.message}
             data={posts}
             extraData={rerenderCount} // This triggers a rerender of the visible list items
             renderItem={({ item }) => (
