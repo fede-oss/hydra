@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import type { Post } from "../api/Posts";
@@ -24,22 +18,16 @@ import SortAndContext, {
 import PostComponent from "../components/RedditDataRepresentations/Post/PostComponent";
 import { CommentComponent } from "../components/RedditDataRepresentations/Post/PostParts/Comments";
 import UserDetailsComponent from "../components/RedditDataRepresentations/User/UserDetailsComponent";
+import AccessFailureComponent from "../components/UI/AccessFailureComponent";
+import PostMediaBrowsingProvider from "../components/UI/PostMediaBrowsingProvider";
 import RedditDataScroller from "../components/UI/RedditDataScroller";
 import { AccountContext } from "../contexts/AccountContext";
-import { MediaViewerContext } from "../contexts/MediaViewerContext";
-import { PostMediaBrowsingContext } from "../contexts/PostMediaBrowsingContext";
-import { PostSettingsContext } from "../contexts/SettingsContexts/PostSettingsContext";
 import { ThemeContext } from "../contexts/SettingsContexts/ThemeContext";
+import { SubredditContext } from "../contexts/SubredditContext";
 import RedditURL from "../utils/RedditURL";
 import URL from "../utils/URL";
 import { useURLNavigation } from "../utils/navigation";
 import useRedditDataState from "../utils/useRedditDataState";
-import {
-  buildUserProfileMediaIndex,
-  getUserProfileMediaInitialIndex,
-} from "../utils/userProfileMedia";
-import AccessFailureComponent from "../components/UI/AccessFailureComponent";
-import { SubredditContext } from "../contexts/SubredditContext";
 
 export default function UserPage({ route }: StackPageProps<"UserPage">) {
   const url = route.params.url;
@@ -52,8 +40,6 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
   const { theme } = useContext(ThemeContext);
   const { currentUser } = useContext(AccountContext);
   const { subreddits } = useContext(SubredditContext);
-  const { postCompactMode } = useContext(PostSettingsContext);
-  const { displayMedia } = useContext(MediaViewerContext);
 
   const [user, setUser] = useState<User>();
 
@@ -71,33 +57,12 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
     refreshDependencies: [sort, sortTime],
   });
 
-  const profileMedia = useMemo(
-    () => buildUserProfileMediaIndex(userContent, postCompactMode),
-    [userContent, postCompactMode],
-  );
-
-  const openPostMedia = useCallback(
-    (post: Post, mediaIndex: number) => {
-      const initialIndex = getUserProfileMediaInitialIndex(
-        profileMedia,
-        post,
-        mediaIndex,
-      );
-      if (initialIndex === null) return false;
-
-      displayMedia({
-        media: profileMedia.media,
-        initialIndex,
-        getCurrentPost: (index) => profileMedia.posts[index] ?? null,
-      });
-      return true;
-    },
-    [displayMedia, profileMedia],
-  );
-
-  const mediaBrowsingContextValue = useMemo(
-    () => ({ openPostMedia }),
-    [openPostMedia],
+  const profilePosts = useMemo(
+    () =>
+      userContent.filter(
+        (content): content is Post => !!content && content.type === "post",
+      ),
+    [userContent],
   );
 
   const isDeepPath = !!new URL(url).getBasePath().split("/")[5]; // More than just /user/username like /user/username/comments
@@ -168,7 +133,7 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
           new RedditURL(url).getRelativePath().split("/")[2] ?? "User"
         }
       >
-        <PostMediaBrowsingContext.Provider value={mediaBrowsingContextValue}>
+        <PostMediaBrowsingProvider posts={profilePosts}>
           <RedditDataScroller<UserContent>
             ListHeaderComponent={() =>
               !isDeepPath && user && <UserDetailsComponent user={user} />
@@ -203,7 +168,7 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
               return null;
             }}
           />
-        </PostMediaBrowsingContext.Provider>
+        </PostMediaBrowsingProvider>
       </AccessFailureComponent>
     </View>
   );

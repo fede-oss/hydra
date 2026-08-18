@@ -1,16 +1,15 @@
 import type { Post } from "../api/Posts";
-import type { UserContent } from "../api/User";
 import type {
   MediaItemCollection,
   MediaItemRow,
 } from "../components/UI/MediaViewer.tsx/types";
 
-export type UserProfileMediaEntry = {
+export type PostMediaEntry = {
   post: Post;
   media: MediaItemRow;
 };
 
-export type UserProfileMediaIndex = {
+export type PostMediaIndex = {
   media: MediaItemCollection;
   posts: Post[];
   firstMediaIndexByPost: Map<Post, number>;
@@ -31,15 +30,14 @@ function getRenderedPost(post: Post, compactMode: boolean): Post | null {
 }
 
 /**
- * Mirrors the media that PostMedia/CompactPostMedia actually expose as a
- * tappable media viewer target. Full-size crossposts resolve to the nested post
- * whose media is rendered, while link cards and comment links retain their
- * existing navigation behavior.
+ * Mirrors the media that PostMedia/CompactPostMedia expose as a tappable media
+ * viewer target. Full-size crossposts resolve to the nested post whose media is
+ * rendered, while link cards and comment links retain their existing behavior.
  */
-export function getUserProfilePostMedia(
+export function getPostMedia(
   post: Post,
   compactMode: boolean,
-): UserProfileMediaEntry | null {
+): PostMediaEntry | null {
   const renderedPost = getRenderedPost(post, compactMode);
   if (!renderedPost || renderedPost.crossCommentLink) return null;
 
@@ -69,39 +67,37 @@ export function getUserProfilePostMedia(
   };
 }
 
-export function buildUserProfileMediaIndex(
-  content: UserContent[],
+export function buildPostMediaIndex(
+  posts: readonly Post[],
   compactMode: boolean,
-): UserProfileMediaIndex {
+): PostMediaIndex {
   const media: MediaItemCollection = [];
-  const posts: Post[] = [];
+  const indexedPosts: Post[] = [];
   const firstMediaIndexByPost = new Map<Post, number>();
   const rowIndexByPost = new Map<Post, number>();
   let flatMediaIndex = 0;
 
-  for (const item of content) {
-    if (!item || item.type !== "post") continue;
-
-    const entry = getUserProfilePostMedia(item, compactMode);
+  for (const post of posts) {
+    const entry = getPostMedia(post, compactMode);
     if (!entry || rowIndexByPost.has(entry.post)) continue;
 
     firstMediaIndexByPost.set(entry.post, flatMediaIndex);
     rowIndexByPost.set(entry.post, media.length);
     media.push(entry.media);
-    posts.push(entry.post);
+    indexedPosts.push(entry.post);
     flatMediaIndex += entry.media.length;
   }
 
   return {
     media,
-    posts,
+    posts: indexedPosts,
     firstMediaIndexByPost,
     rowIndexByPost,
   };
 }
 
-export function getUserProfileMediaInitialIndex(
-  index: UserProfileMediaIndex,
+export function getPostMediaInitialIndex(
+  index: PostMediaIndex,
   post: Post,
   mediaIndex: number,
 ): number | null {
