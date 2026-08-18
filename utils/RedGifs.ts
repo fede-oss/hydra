@@ -54,7 +54,7 @@ type RedGifUser = {
   profileUrl?: string | null;
   publishedCollections?: number;
   publishedGifs: number;
-  status: string;
+  status?: string;
   subscription: number;
   url: string;
   username: string;
