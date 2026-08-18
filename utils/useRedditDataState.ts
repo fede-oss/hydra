@@ -61,6 +61,7 @@ export default function useRedditDataState<
   const [hitFilterLimit, setHitFilterLimit] = useState(false);
   const [accessFailure, setAccessFailure] =
     useState<ErrorTypeResolver<E> | null>(null);
+  const [loadError, setLoadError] = useState<Error | null>(null);
 
   const applyFilters = async (newData: T[], filters: FilterFunction<T>[]) => {
     if (filters.length === 0) return newData;
@@ -81,9 +82,14 @@ export default function useRedditDataState<
       ) {
         setAccessFailure(e as ErrorTypeResolver<E>);
         return [];
-      } else {
-        throw e;
       }
+
+      const error =
+        e instanceof Error
+          ? e
+          : new Error("Unable to load Reddit data. Please try again.");
+      setLoadError(error);
+      throw error;
     }
   };
 
@@ -119,6 +125,7 @@ export default function useRedditDataState<
     if (refreshPromise.current) return refreshPromise.current;
     if (loadMorePromise.current) return loadMorePromise.current;
 
+    setLoadError(null);
     const promise = loadMoreDataInternal().finally(() => {
       if (loadMorePromise.current === promise) {
         loadMorePromise.current = null;
@@ -159,6 +166,7 @@ export default function useRedditDataState<
   const refreshData = (options: { clearBeforeLoading?: boolean } = {}) => {
     if (refreshPromise.current) return refreshPromise.current;
 
+    setLoadError(null);
     const pendingLoadMore = loadMorePromise.current;
     const waitForLoadMore = pendingLoadMore
       ? pendingLoadMore.catch(() => undefined)
@@ -208,10 +216,10 @@ export default function useRedditDataState<
   const initialLoad = useRef(true);
   useEffect(() => {
     if (initialLoad.current) {
-      void loadMoreData();
+      void loadMoreData().catch(() => undefined);
       initialLoad.current = false;
     } else {
-      void refreshData({ clearBeforeLoading: true });
+      void refreshData({ clearBeforeLoading: true }).catch(() => undefined);
     }
   }, refreshDependencies);
 
@@ -224,5 +232,6 @@ export default function useRedditDataState<
     fullyLoaded,
     hitFilterLimit,
     accessFailure,
+    loadError,
   };
 }
