@@ -1,13 +1,23 @@
 <div align="center">
     <img src="./assets/images/icon.png" alt="Hydra" width="100" style="border-radius: 22px; overflow: hidden;"/> <br/>
     <h1>Hydra</h1> <br/>
-    <p>A mobile reddit client built with Expo and Apollo that doesn't require an API key to function.</p>
+    <p>A slightly improved fork of <a href="https://github.com/dmilin1/hydra">Hydra</a>, the mobile Reddit client built with Expo and Apollo that doesn't require an API key to function.</p>
 <br />
 <a href="https://github.com/dmilin1/hydra/README.md"><img alt="License" src="https://badgen.now.sh/badge/license/AGPL-3.0"></a>
 <a href="https://discord.gg/ypaD4KYJ3R"><img alt="Join the community on Discord" src="https://img.shields.io/discord/1332974865371758646.svg?style=flat"></a>
 </div>
 <br />
 
+## ✨ What's different in this fork
+
+This fork stays close to upstream Hydra while adding a few quality-of-life improvements.
+
+- **Gallery Mode marks posts as seen on scroll** — when Hydra's existing **Mark as Seen On Scroll** setting is enabled, Gallery Mode also records posts as seen as you browse past them.
+- **Album-aware seen tracking** — multi-image posts are only marked seen after all of their Gallery Mode media tiles have actually been viewed and scrolled past.
+- **Masonry-safe and direction-aware behavior** — Gallery tracking uses stable post/media identities rather than layout indices, and scrolling back upward does not incorrectly mark posts as seen.
+- **Upstream-compatible by design** — the fork otherwise stays as close as possible to the original Hydra behavior and codebase.
+
+Upstream project: [dmilin1/hydra](https://github.com/dmilin1/hydra)
 
 ## 🚀 Getting Started
 
@@ -21,7 +31,7 @@ Before you begin, make sure you have the following installed on your system:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/dmilin1/hydra.git
+git clone https://github.com/fede-oss/hydra.git
 cd hydra
 ```
 
