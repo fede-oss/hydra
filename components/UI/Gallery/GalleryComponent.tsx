@@ -39,6 +39,7 @@ type GalleryComponentProps = {
   loadMore: () => Promise<void>;
   fullyLoaded: boolean;
   hitFilterLimit: boolean;
+  loadError?: string | null;
   onPostScrolledPast?: (post: Post) => void | Promise<void>;
 };
 
@@ -55,6 +56,7 @@ export default function GalleryComponent({
   loadMore,
   fullyLoaded,
   hitFilterLimit,
+  loadError,
   onPostScrolledPast,
 }: GalleryComponentProps) {
   const { theme } = useContext(ThemeContext);
@@ -67,12 +69,13 @@ export default function GalleryComponent({
   });
   const [isLoadingMore, setIsLoadingMore] = useState(true);
   const [hitFreeLimit, setHitFreeLimit] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [localLoadError, setLocalLoadError] = useState<string | null>(null);
 
   const flashListRef = useRef<FlashListRef<GalleryItem>>(null);
   const seenTrackerRef = useRef(new GallerySeenTracker());
   const lastScrollPositionRef = useRef(0);
   const scrollingForwardRef = useRef(true);
+  const displayedLoadError = localLoadError ?? loadError;
 
   /**
    * This looks weird, but it's because we need to be able to fetch the post data
@@ -135,11 +138,11 @@ export default function GalleryComponent({
       return;
     }
     setIsLoadingMore(true);
-    setLoadError(null);
+    setLocalLoadError(null);
     try {
       await loadMore();
     } catch (error) {
-      setLoadError(getLoadErrorMessage(error));
+      setLocalLoadError(getLoadErrorMessage(error));
     } finally {
       setIsLoadingMore(false);
     }
@@ -148,6 +151,12 @@ export default function GalleryComponent({
   useEffect(() => {
     updateMedia(viewerMedia);
   }, [viewerMedia.length]);
+
+  useEffect(() => {
+    if (posts.length > 0 || fullyLoaded || hitFilterLimit || loadError) {
+      setIsLoadingMore(false);
+    }
+  }, [posts.length, fullyLoaded, hitFilterLimit, loadError]);
 
   return (
     <View
@@ -262,7 +271,7 @@ export default function GalleryComponent({
             {isLoadingMore && !hitFilterLimit && (
               <ActivityIndicator size="small" />
             )}
-            {!isLoadingMore && loadError && (
+            {!isLoadingMore && displayedLoadError && (
               <Text
                 style={[
                   styles.endOfListText,
@@ -271,22 +280,25 @@ export default function GalleryComponent({
                   },
                 ]}
               >
-                {loadError}
+                {displayedLoadError}
               </Text>
             )}
-            {!isLoadingMore && fullyLoaded && !!posts.length && (
-              <Text
-                style={[
-                  styles.endOfListText,
-                  {
-                    color: theme.text,
-                  },
-                ]}
-              >
-                {`Wow. You've reached the bottom.`}
-              </Text>
-            )}
-            {hitFilterLimit && (
+            {!isLoadingMore &&
+              fullyLoaded &&
+              !!posts.length &&
+              !displayedLoadError && (
+                <Text
+                  style={[
+                    styles.endOfListText,
+                    {
+                      color: theme.text,
+                    },
+                  ]}
+                >
+                  {`Wow. You've reached the bottom.`}
+                </Text>
+              )}
+            {hitFilterLimit && !displayedLoadError && (
               <Text
                 style={[
                   styles.endOfListText,
