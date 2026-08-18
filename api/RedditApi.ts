@@ -9,6 +9,8 @@ import { parseRetryAfterMs } from "../utils/http";
 
 export type RedditDataObject = { id: string; type: string; after: string };
 
+let redditRateLimitedUntil = 0;
+
 export class RedditRateLimitError extends Error {
   name = "RedditRateLimitError";
   retryAfterMs: number | null;
@@ -35,6 +37,12 @@ export async function api(
   fetchOptions: SafeFetchOptions = {},
   apiOptions: ApiOptions = {},
 ): Promise<any> {
+  const now = Date.now();
+  const activeRateLimitMs = redditRateLimitedUntil - now;
+  if (activeRateLimitMs > 0) {
+    throw new RedditRateLimitError(activeRateLimitMs);
+  }
+
   const headers = fetchOptions?.headers ?? {};
   if (apiOptions.requireAuth) {
     if (!UserAuth.modhash) {
@@ -64,9 +72,18 @@ export async function api(
   await RedditCookies.persistSessionCookies();
 
   if (res.status === 429) {
-    throw new RedditRateLimitError(
-      parseRetryAfterMs(res.headers.get("Retry-After")),
+    const rateLimitReceivedAt = Date.now();
+    const retryAfterMs = parseRetryAfterMs(
+      res.headers.get("Retry-After"),
+      rateLimitReceivedAt,
     );
+    if (retryAfterMs != null && retryAfterMs > 0) {
+      redditRateLimitedUntil = Math.max(
+        redditRateLimitedUntil,
+        rateLimitReceivedAt + retryAfterMs,
+      );
+    }
+    throw new RedditRateLimitError(retryAfterMs);
   }
 
   if (apiOptions.dontJsonifyResponse) {
