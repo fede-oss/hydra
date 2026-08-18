@@ -2,11 +2,11 @@ export function parseRetryAfterMs(
   value: string | null,
   now = Date.now(),
 ): number | null {
-  if (!value) return null;
+  if (!value?.trim()) return null;
 
   const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.ceil(seconds * 1000);
+  if (Number.isFinite(seconds)) {
+    return seconds >= 0 ? Math.ceil(seconds * 1000) : null;
   }
 
   const retryAt = Date.parse(value);
