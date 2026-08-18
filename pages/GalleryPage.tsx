@@ -48,6 +48,7 @@ export default function GalleryPage({ route }: StackPageProps<"GalleryPage">) {
     fullyLoaded,
     hitFilterLimit,
     accessFailure,
+    loadError,
   } = useRedditDataState<Post>({
     loadData: async (after, limit) => await getPosts(url, { after, limit }),
     filterRules: [
@@ -121,6 +122,7 @@ export default function GalleryPage({ route }: StackPageProps<"GalleryPage">) {
           loadMore={loadMorePosts}
           fullyLoaded={fullyLoaded}
           hitFilterLimit={hitFilterLimit}
+          loadError={loadError?.message}
           onPostScrolledPast={autoMarkAsSeen ? markPostSeen : undefined}
         />
       </AccessFailureComponent>
