@@ -3,6 +3,7 @@ import { StyleSheet, View, Text } from "react-native";
 
 import ImageViewer from "./ImageViewer";
 import { PostInteractionContext } from "../../../../../contexts/PostInteractionContext";
+import { PostMediaBrowsingContext } from "../../../../../contexts/PostMediaBrowsingContext";
 import { DataModeContext } from "../../../../../contexts/SettingsContexts/DataModeContext";
 import { ThemeContext } from "../../../../../contexts/SettingsContexts/ThemeContext";
 import { PostSettingsContext } from "../../../../../contexts/SettingsContexts/PostSettingsContext";
@@ -23,6 +24,7 @@ export default function VideoPlayer({ post }: VideoPlayerProps) {
   const { currentDataMode } = useContext(DataModeContext);
   const { autoPlayVideos } = useContext(PostSettingsContext);
   const { interactedWithPost } = useContext(PostInteractionContext);
+  const { openPostMedia } = useContext(PostMediaBrowsingContext);
   const { displayMedia } = useContext(MediaViewerContext);
   const { width, height } = useSafeAreaFrame();
 
@@ -39,12 +41,16 @@ export default function VideoPlayer({ post }: VideoPlayerProps) {
       }}
       onPress={() => {
         interactedWithPost();
-        displayMedia({
-          media: [
-            post.videos.map((video) => ({ type: "video", source: video })),
-          ],
-          getCurrentPost: () => post,
-        });
+        const openedCollection =
+          post.type === "post" ? openPostMedia(post, 0) : false;
+        if (!openedCollection) {
+          displayMedia({
+            media: [
+              post.videos.map((video) => ({ type: "video", source: video })),
+            ],
+            getCurrentPost: () => post,
+          });
+        }
       }}
     >
       <View style={{ flex: 1 }}>

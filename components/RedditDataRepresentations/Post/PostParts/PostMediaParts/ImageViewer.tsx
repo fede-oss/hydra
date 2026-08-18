@@ -8,6 +8,7 @@ import { ThemeContext } from "../../../../../contexts/SettingsContexts/ThemeCont
 import { useMediaSharing } from "../../../../../utils/sharing";
 import { MediaViewerContext } from "../../../../../contexts/MediaViewerContext";
 import { PostInteractionContext } from "../../../../../contexts/PostInteractionContext";
+import { PostMediaBrowsingContext } from "../../../../../contexts/PostMediaBrowsingContext";
 import { Post } from "../../../../../api/Posts";
 import { PostDetail } from "../../../../../api/PostDetail";
 import { useSafeAreaFrame } from "react-native-safe-area-context";
@@ -23,6 +24,7 @@ export default function ImageViewer({
 }) {
   const { currentDataMode } = useContext(DataModeContext);
   const { displayMedia } = useContext(MediaViewerContext);
+  const { openPostMedia } = useContext(PostMediaBrowsingContext);
   const { interactedWithPost } = useContext(PostInteractionContext);
   const shareMedia = useMediaSharing();
   const { width, height } = useSafeAreaFrame();
@@ -56,11 +58,17 @@ export default function ImageViewer({
             onPress={() => {
               setLoadLowData(false);
               interactedWithPost();
-              displayMedia({
-                media: [images.map((img) => ({ type: "image", source: img }))],
-                initialIndex: index,
-                getCurrentPost: () => post ?? null,
-              });
+              const openedCollection =
+                post?.type === "post" ? openPostMedia(post, index) : false;
+              if (!openedCollection) {
+                displayMedia({
+                  media: [
+                    images.map((img) => ({ type: "image", source: img })),
+                  ],
+                  initialIndex: index,
+                  getCurrentPost: () => post ?? null,
+                });
+              }
             }}
             style={styles.touchableZone}
             underlayColor={theme.background}

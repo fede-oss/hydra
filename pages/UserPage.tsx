@@ -1,6 +1,13 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { StyleSheet, View } from "react-native";
 
+import type { Post } from "../api/Posts";
 import {
   BannedUserError,
   User,
@@ -19,11 +26,18 @@ import { CommentComponent } from "../components/RedditDataRepresentations/Post/P
 import UserDetailsComponent from "../components/RedditDataRepresentations/User/UserDetailsComponent";
 import RedditDataScroller from "../components/UI/RedditDataScroller";
 import { AccountContext } from "../contexts/AccountContext";
+import { MediaViewerContext } from "../contexts/MediaViewerContext";
+import { PostMediaBrowsingContext } from "../contexts/PostMediaBrowsingContext";
+import { PostSettingsContext } from "../contexts/SettingsContexts/PostSettingsContext";
 import { ThemeContext } from "../contexts/SettingsContexts/ThemeContext";
 import RedditURL from "../utils/RedditURL";
 import URL from "../utils/URL";
 import { useURLNavigation } from "../utils/navigation";
 import useRedditDataState from "../utils/useRedditDataState";
+import {
+  buildUserProfileMediaIndex,
+  getUserProfileMediaInitialIndex,
+} from "../utils/userProfileMedia";
 import AccessFailureComponent from "../components/UI/AccessFailureComponent";
 import { SubredditContext } from "../contexts/SubredditContext";
 
@@ -38,6 +52,8 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
   const { theme } = useContext(ThemeContext);
   const { currentUser } = useContext(AccountContext);
   const { subreddits } = useContext(SubredditContext);
+  const { postCompactMode } = useContext(PostSettingsContext);
+  const { displayMedia } = useContext(MediaViewerContext);
 
   const [user, setUser] = useState<User>();
 
@@ -54,6 +70,35 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
     loadData: async (after) => await getUserContent(url, { after }),
     refreshDependencies: [sort, sortTime],
   });
+
+  const profileMedia = useMemo(
+    () => buildUserProfileMediaIndex(userContent, postCompactMode),
+    [userContent, postCompactMode],
+  );
+
+  const openPostMedia = useCallback(
+    (post: Post, mediaIndex: number) => {
+      const initialIndex = getUserProfileMediaInitialIndex(
+        profileMedia,
+        post,
+        mediaIndex,
+      );
+      if (initialIndex === null) return false;
+
+      displayMedia({
+        media: profileMedia.media,
+        initialIndex,
+        getCurrentPost: (index) => profileMedia.posts[index] ?? null,
+      });
+      return true;
+    },
+    [displayMedia, profileMedia],
+  );
+
+  const mediaBrowsingContextValue = useMemo(
+    () => ({ openPostMedia }),
+    [openPostMedia],
+  );
 
   const isDeepPath = !!new URL(url).getBasePath().split("/")[5]; // More than just /user/username like /user/username/comments
 
@@ -123,40 +168,42 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
           new RedditURL(url).getRelativePath().split("/")[2] ?? "User"
         }
       >
-        <RedditDataScroller<UserContent>
-          ListHeaderComponent={() =>
-            !isDeepPath && user && <UserDetailsComponent user={user} />
-          }
-          loadMore={loadMoreUserContent}
-          refresh={refreshUserContent}
-          fullyLoaded={fullyLoaded}
-          hitFilterLimit={hitFilterLimit}
-          data={userContent}
-          noDataFoundMessage={`${user?.userName ?? "This user"} has no activity or has set their account to private.`}
-          renderItem={({ item: content }) => {
-            if (content.type === "post") {
-              return (
-                <PostComponent
-                  post={content}
-                  setPost={(newPost) => modifyUserContent([newPost])}
-                />
-              );
+        <PostMediaBrowsingContext.Provider value={mediaBrowsingContextValue}>
+          <RedditDataScroller<UserContent>
+            ListHeaderComponent={() =>
+              !isDeepPath && user && <UserDetailsComponent user={user} />
             }
-            if (content.type === "comment") {
-              return (
-                <CommentComponent
-                  comment={content}
-                  displayInList
-                  changeComment={(newComment) =>
-                    modifyUserContent([newComment])
-                  }
-                  deleteComment={(comment) => deleteUserContent([comment])}
-                />
-              );
-            }
-            return null;
-          }}
-        />
+            loadMore={loadMoreUserContent}
+            refresh={refreshUserContent}
+            fullyLoaded={fullyLoaded}
+            hitFilterLimit={hitFilterLimit}
+            data={userContent}
+            noDataFoundMessage={`${user?.userName ?? "This user"} has no activity or has set their account to private.`}
+            renderItem={({ item: content }) => {
+              if (content.type === "post") {
+                return (
+                  <PostComponent
+                    post={content}
+                    setPost={(newPost) => modifyUserContent([newPost])}
+                  />
+                );
+              }
+              if (content.type === "comment") {
+                return (
+                  <CommentComponent
+                    comment={content}
+                    displayInList
+                    changeComment={(newComment) =>
+                      modifyUserContent([newComment])
+                    }
+                    deleteComment={(comment) => deleteUserContent([comment])}
+                  />
+                );
+              }
+              return null;
+            }}
+          />
+        </PostMediaBrowsingContext.Provider>
       </AccessFailureComponent>
     </View>
   );

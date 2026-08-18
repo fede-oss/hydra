@@ -10,6 +10,7 @@ import { Image } from "expo-image";
 import { PostDetail } from "../../../../api/PostDetail";
 import { Post } from "../../../../api/Posts";
 import { PostInteractionContext } from "../../../../contexts/PostInteractionContext";
+import { PostMediaBrowsingContext } from "../../../../contexts/PostMediaBrowsingContext";
 import { DataModeContext } from "../../../../contexts/SettingsContexts/DataModeContext";
 import { PostSettingsContext } from "../../../../contexts/SettingsContexts/PostSettingsContext";
 import { ThemeContext } from "../../../../contexts/SettingsContexts/ThemeContext";
@@ -29,6 +30,7 @@ export default function CompactPostMedia({ post }: CompactPostMediaProps) {
   const { theme } = useContext(ThemeContext);
   const { currentDataMode } = useContext(DataModeContext);
   const { interactedWithPost } = useContext(PostInteractionContext);
+  const { openPostMedia } = useContext(PostMediaBrowsingContext);
   const { displayMedia } = useContext(MediaViewerContext);
   const { pushURL } = useURLNavigation();
 
@@ -53,12 +55,16 @@ export default function CompactPostMedia({ post }: CompactPostMediaProps) {
           animationDuration={{ in: 0, out: 150 }}
           onPress={() => {
             interactedWithPost();
-            displayMedia({
-              media: [
-                post.videos.map((video) => ({ type: "video", source: video })),
-              ],
-              getCurrentPost: () => post,
-            });
+            const openedCollection =
+              post.type === "post" ? openPostMedia(post, 0) : false;
+            if (!openedCollection) {
+              displayMedia({
+                media: [
+                  post.videos.map((video) => ({ type: "video", source: video })),
+                ],
+                getCurrentPost: () => post,
+              });
+            }
           }}
         >
           <View style={styles.iconContainer}>
@@ -88,12 +94,16 @@ export default function CompactPostMedia({ post }: CompactPostMediaProps) {
           animationDuration={{ in: 0, out: 150 }}
           onPress={() => {
             interactedWithPost();
-            displayMedia({
-              media: [
-                post.images.map((image) => ({ type: "image", source: image })),
-              ],
-              getCurrentPost: () => post,
-            });
+            const openedCollection =
+              post.type === "post" ? openPostMedia(post, 0) : false;
+            if (!openedCollection) {
+              displayMedia({
+                media: [
+                  post.images.map((image) => ({ type: "image", source: image })),
+                ],
+                getCurrentPost: () => post,
+              });
+            }
           }}
         >
           <View style={styles.iconContainer}>
