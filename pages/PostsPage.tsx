@@ -4,6 +4,7 @@ import { getPosts, Post } from "../api/Posts";
 
 import { StackPageProps } from "../app/stack";
 import PostComponent from "../components/RedditDataRepresentations/Post/PostComponent";
+import PostMediaBrowsingProvider from "../components/UI/PostMediaBrowsingProvider";
 import RedditDataScroller from "../components/UI/RedditDataScroller";
 import SearchBar from "../components/UI/SearchBar";
 import { FiltersContext } from "../contexts/SettingsContexts/FiltersContext";
@@ -155,64 +156,69 @@ export default function PostsPage({
         accessFailure={accessFailure}
         contentName={subreddit}
       >
-        <RedditDataScroller<Post>
-          ListHeaderComponent={
-            route.name === "PostsPage" ? (
-              <SearchBar
-                clearOnSearch={true}
-                searchOnBlur={false}
-                onSearch={(text) => {
-                  if (!text) return;
-                  const newURL = new RedditURL(
-                    `https://www.reddit.com/r/${subreddit}/search/`,
-                  );
-                  newURL.changeQueryParam("q", text);
-                  newURL.changeQueryParam("restrict_sr", "true");
-                  navigation.pushURL(newURL.toString());
+        <PostMediaBrowsingProvider
+          posts={posts}
+          enabled={route.name === "Home"}
+        >
+          <RedditDataScroller<Post>
+            ListHeaderComponent={
+              route.name === "PostsPage" ? (
+                <SearchBar
+                  clearOnSearch={true}
+                  searchOnBlur={false}
+                  onSearch={(text) => {
+                    if (!text) return;
+                    const newURL = new RedditURL(
+                      `https://www.reddit.com/r/${subreddit}/search/`,
+                    );
+                    newURL.changeQueryParam("q", text);
+                    newURL.changeQueryParam("restrict_sr", "true");
+                    navigation.pushURL(newURL.toString());
+                  }}
+                />
+              ) : null
+            }
+            loadMore={loadMorePosts}
+            refresh={refreshPosts}
+            fullyLoaded={fullyLoaded}
+            hitFilterLimit={hitFilterLimit}
+            loadError={loadError?.message}
+            data={posts}
+            extraData={rerenderCount} // This triggers a rerender of the visible list items
+            renderItem={({ item }) => (
+              <PostComponent
+                post={item}
+                setPost={(newPost) => {
+                  modifyPosts([newPost]);
                 }}
+                deletePost={() => {
+                  deletePosts([item]);
+                }}
+                onPostOpen={
+                  showSplitView
+                    ? (url) => {
+                        setPostDetailsURL(url);
+                      }
+                    : undefined
+                }
               />
-            ) : null
-          }
-          loadMore={loadMorePosts}
-          refresh={refreshPosts}
-          fullyLoaded={fullyLoaded}
-          hitFilterLimit={hitFilterLimit}
-          loadError={loadError?.message}
-          data={posts}
-          extraData={rerenderCount} // This triggers a rerender of the visible list items
-          renderItem={({ item }) => (
-            <PostComponent
-              post={item}
-              setPost={(newPost) => {
-                modifyPosts([newPost]);
-              }}
-              deletePost={() => {
-                deletePosts([item]);
-              }}
-              onPostOpen={
-                showSplitView
-                  ? (url) => {
-                      setPostDetailsURL(url);
-                    }
-                  : undefined
-              }
-            />
-          )}
-          onViewableItemsChanged={(data) => {
-            const maxVisibleItem =
-              data.viewableItems[data.viewableItems.length - 1]?.index ?? -1;
-            const changedItems = data.changed;
-            changedItems
-              .filter(
-                (item) =>
-                  !item.isViewable && (item?.index ?? 0) < maxVisibleItem,
-              )
-              .forEach((viewToken) => {
-                const post = viewToken.item as Post;
-                handleScrolledPastPost(post);
-              });
-          }}
-        />
+            )}
+            onViewableItemsChanged={(data) => {
+              const maxVisibleItem =
+                data.viewableItems[data.viewableItems.length - 1]?.index ?? -1;
+              const changedItems = data.changed;
+              changedItems
+                .filter(
+                  (item) =>
+                    !item.isViewable && (item?.index ?? 0) < maxVisibleItem,
+                )
+                .forEach((viewToken) => {
+                  const post = viewToken.item as Post;
+                  handleScrolledPastPost(post);
+                });
+            }}
+          />
+        </PostMediaBrowsingProvider>
         {postDetailsURL && showSplitView && (
           <>
             <View

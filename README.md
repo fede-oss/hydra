@@ -15,7 +15,7 @@ This fork stays close to upstream Hydra while adding a few quality-of-life impro
 - **Gallery Mode marks posts as seen on scroll** — when Hydra's existing **Mark as Seen On Scroll** setting is enabled, Gallery Mode also records posts as seen as you browse past them.
 - **Album-aware seen tracking** — multi-image posts are only marked seen after all of their Gallery Mode media tiles have actually been viewed and scrolled past.
 - **Masonry-safe and direction-aware behavior** — Gallery tracking uses stable post/media identities rather than layout indices, and scrolling back upward does not incorrectly mark posts as seen.
-- **Swipe through media on user profiles** — tap an image or video on a user's profile and swipe vertically through that user's loaded media posts; albums continue to swipe horizontally within each post, in both regular and compact post layouts.
+- **Swipe through media on Home and user profiles** — tap an image or video in the Home **Posts** tab or on a user's profile and swipe vertically through the loaded media posts; albums continue to swipe horizontally within each post, in both regular and compact post layouts.
 - **Upstream-compatible by design** — the fork otherwise stays as close as possible to the original Hydra behavior and codebase.
 
 Upstream project: [dmilin1/hydra](https://github.com/dmilin1/hydra)
