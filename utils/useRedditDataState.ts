@@ -172,7 +172,10 @@ export default function useRedditDataState<
       ? pendingLoadMore.catch(() => undefined)
       : Promise.resolve();
     const promise = waitForLoadMore
-      .then(() => refreshDataInternal(options))
+      .then(() => {
+        setLoadError(null);
+        return refreshDataInternal(options);
+      })
       .finally(() => {
         if (refreshPromise.current === promise) {
           refreshPromise.current = null;
@@ -207,7 +210,7 @@ export default function useRedditDataState<
         (datum) =>
           !deletedData.find(
             (deletedDatum) =>
-              deletedDatum.id === datum.id && deletedDatum.type === datum.type,
+              deletedDatum.id === datum.id && datum.type === deletedDatum.type,
           ),
       );
     });
