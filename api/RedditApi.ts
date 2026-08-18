@@ -5,8 +5,23 @@ import RedditCookies from "../utils/RedditCookies";
 import RedditURL from "../utils/RedditURL";
 import { USER_AGENT } from "./UserAgent";
 import safeFetch, { SafeFetchOptions } from "../utils/safeFetch";
+import { parseRetryAfterMs } from "../utils/http";
 
 export type RedditDataObject = { id: string; type: string; after: string };
+
+export class RedditRateLimitError extends Error {
+  name = "RedditRateLimitError";
+  retryAfterMs: number | null;
+
+  constructor(retryAfterMs: number | null) {
+    const retryMessage =
+      retryAfterMs == null
+        ? "Try again shortly."
+        : `Try again in about ${Math.max(1, Math.ceil(retryAfterMs / 1000))} seconds.`;
+    super(`Reddit is rate limiting requests. ${retryMessage}`);
+    this.retryAfterMs = retryAfterMs;
+  }
+}
 
 type ApiOptions = {
   depaginate?: boolean;
@@ -47,6 +62,12 @@ export async function api(
    * so we set an expiration date of 10,000 days in the future.
    */
   await RedditCookies.persistSessionCookies();
+
+  if (res.status === 429) {
+    throw new RedditRateLimitError(
+      parseRetryAfterMs(res.headers.get("Retry-After")),
+    );
+  }
 
   if (apiOptions.dontJsonifyResponse) {
     return await res.text();
