@@ -44,6 +44,12 @@ type GalleryComponentProps = {
 
 const FREE_LIMIT_POST_COUNT = 100;
 
+function getLoadErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Unable to load Reddit data. Please try again.";
+}
+
 export default function GalleryComponent({
   posts,
   loadMore,
@@ -61,6 +67,7 @@ export default function GalleryComponent({
   });
   const [isLoadingMore, setIsLoadingMore] = useState(true);
   const [hitFreeLimit, setHitFreeLimit] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const flashListRef = useRef<FlashListRef<GalleryItem>>(null);
   const seenTrackerRef = useRef(new GallerySeenTracker());
@@ -128,8 +135,14 @@ export default function GalleryComponent({
       return;
     }
     setIsLoadingMore(true);
-    await loadMore();
-    setIsLoadingMore(false);
+    setLoadError(null);
+    try {
+      await loadMore();
+    } catch (error) {
+      setLoadError(getLoadErrorMessage(error));
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   useEffect(() => {
@@ -243,11 +256,23 @@ export default function GalleryComponent({
             : undefined
         }
         onEndReachedThreshold={2}
-        onEndReached={() => loadMoreData()}
+        onEndReached={() => void loadMoreData()}
         ListFooterComponent={
           <View style={styles.endOfListContainer}>
             {isLoadingMore && !hitFilterLimit && (
               <ActivityIndicator size="small" />
+            )}
+            {!isLoadingMore && loadError && (
+              <Text
+                style={[
+                  styles.endOfListText,
+                  {
+                    color: theme.text,
+                  },
+                ]}
+              >
+                {loadError}
+              </Text>
             )}
             {!isLoadingMore && fullyLoaded && !!posts.length && (
               <Text
